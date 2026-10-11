@@ -2,6 +2,11 @@
 
 **VS Code Power Mode for Neovim** — animated particle explosions, combo counter, screen shake, and cyberpunk neon colors on every keystroke.
 
+> **This is `dbydd/neovim-power-mode`, a fork of [axsaucedo/neovim-power-mode](https://github.com/axsaucedo/neovim-power-mode)**
+> (branch `tern-effects`) with one addition: inside the [Tern](https://tern.dev) terminal the
+> combo drives Tern's **own** cursor trail and pulse instead of the particle floats, so the
+> effect plays without 60 floating windows. See [Tern](#tern) below. Everything else is upstream.
+
 [![Neovim](https://img.shields.io/badge/Neovim-≥0.9-green?style=flat&logo=neovim)](https://neovim.io)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
@@ -32,6 +37,41 @@
 - **Fully configurable** — every parameter tunable via Lua `setup()` or vim global variables
 - **Custom presets** — define your own particle characters, physics, and direction
 - **Pure Lua** — no external dependencies, no compilation required
+
+## Tern
+
+Inside the [Tern](https://tern.dev) terminal (`TERM_PROGRAM=tern`) the loud screen effect is
+Tern's own: its cursor **trail** (off, warp, comet, blaze, sparks, echo) and **pulse** (off,
+ripple, sonic_boom, box_ripple, box_boom), under Settings › Appearance › Cursor. This fork
+lets the combo escalate which pair is playing, and puts your own back when it dies:
+
+| Combo level | `cursor.trail` | `cursor.pulse` |
+|---|---|---|
+| 1–2 | yours | yours |
+| 3 | `comet` | `ripple` |
+| 4 | `blaze` | `box_ripple` |
+| 5 | `sparks` | `sonic_boom` |
+| 6 | `sparks` | `box_boom` |
+
+Two halves:
+
+- **Neovim** writes one small JSON per working directory to `/tmp/power-surge` — the combo, its
+  level and the time — throttled to 120 ms. Neovim cannot call Tern's settings API, so the file
+  is the interface. Set `tern = { dir = ..., interval_ms = ... }` in `setup()` to move it.
+- **Tern** reads that file with the plugin in `tern/`:
+
+  ```sh
+  tern plugin link <path-to-clone>/tern
+  ```
+
+  It polls the focused pane's directory, applies the pair for the level, and restores the
+  baseline (kept in the plugin's key-value store, so even a crash mid-combo leaves the terminal
+  as you had it). It also offers **Power Mode: Toggle** (`ctrl+alt+shift+p`) for the focused
+  Neovim pane.
+
+The 1×1 float pool is skipped inside Tern, since the visible work is Tern's; set
+`tern = { floats = true }` to keep the particles as floats anyway. Outside Tern every part of
+this is inert and the plugin behaves exactly like upstream.
 
 ## Requirements
 
