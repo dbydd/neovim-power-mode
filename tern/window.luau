@@ -3,9 +3,12 @@
 -- One job: while a combo is live in the Neovim pane, turn Tern's own cursor effects up, and
 -- put them back the way the user had them when the combo dies.
 --
--- The screen effect is Tern's, not ours: `cursor.trail` (what the cursor leaves when it moves)
--- and `cursor.pulse` (what a shape change sets off). Nothing is drawn, styled or titled here —
--- the combo only picks which of Tern's effects is playing, and at what volume.
+-- The screen effect is Tern's, not ours: `cursor.trail` (what the cursor leaves when it moves),
+-- `cursor.pulse` (what a shape change sets off), `cursor.glide` (how far it flies to its next
+-- place) and `cursor.shape` (which also fires the pulse again, since the shape changed). Nothing
+-- is drawn, styled or titled here — the combo only picks which of Tern's effects is playing, and
+-- at what volume. Rendering knobs (multisampling, frames queued) are left alone: they change
+-- nothing a person can see.
 --
 -- Input comes from the Neovim half, which writes one small JSON per working directory
 -- (`/tmp/power-surge/<sha>.json`): the combo, its level, and when it was last touched. This
@@ -17,12 +20,12 @@ local STATE_DIR = "/tmp/power-surge"
 --- last row is the ceiling, so a longer combo holds the loudest pair rather than running off
 --- the end of either enum.
 local LADDER = {
-  [1] = { trail = "comet", pulse = "ripple" },
-  [2] = { trail = "comet", pulse = "box_ripple" },
-  [3] = { trail = "blaze", pulse = "box_ripple" },
-  [4] = { trail = "blaze", pulse = "sonic_boom" },
-  [5] = { trail = "sparks", pulse = "sonic_boom" },
-  [6] = { trail = "sparks", pulse = "box_boom" },
+  [1] = { trail = "comet", pulse = "ripple", glide = 60, shape = nil },
+  [2] = { trail = "comet", pulse = "box_ripple", glide = 90, shape = nil },
+  [3] = { trail = "blaze", pulse = "box_ripple", glide = 120, shape = "soft" },
+  [4] = { trail = "blaze", pulse = "sonic_boom", glide = 150, shape = "soft" },
+  [5] = { trail = "sparks", pulse = "sonic_boom", glide = 190, shape = "bar" },
+  [6] = { trail = "sparks", pulse = "box_boom", glide = 240, shape = "bar" },
 }
 
 --- macOS resolves /tmp through /private/tmp, and a pane's cwd may carry either spelling.
@@ -124,86 +127,141 @@ local function focused_cwd(cx)
   return nil
 end
 
--- The user's own effects, remembered in the plugin's key-value store: a crash mid-combo must
--- not leave the terminal louder than the user left it.
+-- The knob set this half owns, remembered in the plugin's key-value store: a crash mid-combo
+-- must not leave the terminal louder than the user left it. `shape` is nil while the user keeps
+-- each place's own shape.
 local BASE_KEY = "base_cursor"
+local KEYS = { "trail", "pulse", "glide", "shape" }
+-- 2 added glide and shape. A store from 1 knows only the first two, and cannot say what the
+-- user's shape was: `soft` and `bar` are this half's own values, so either one there is ours
+-- and the baseline gets the place's own shape back.
+local BASE_VERSION = 2
+local OUR_SHAPES = { soft = true, bar = true }
+
+--- Whether two knob sets agree on every key.
+local function same(a, b)
+  if a == nil or b == nil then
+    return false
+  end
+  for _, key in ipairs(KEYS) do
+    if a[key] ~= b[key] then
+      return false
+    end
+  end
+  return true
+end
 
 local function current_cursor(cx)
   local ok, value = pcall(cx.settings.get, cx.settings, "cursor")
   if not ok or type(value) ~= "table" then
     return nil
   end
-  return { trail = value.trail, pulse = value.pulse }
+  local out = {}
+  for _, key in ipairs(KEYS) do
+    out[key] = value[key]
+  end
+  return out
 end
 
---- The user's baseline, from the store when it is there, else from the settings as they stand.
---- A stored baseline that differs from the live settings is a boost left behind by a crash, so
---- it wins and is put back.
-local function baseline(cx)
+--- Bring a store written by an older release up to date. The trail and the pulse carry over;
+--- the glide falls back to the live value (that release never touched it); the shape falls back
+--- only if the live one is not ours.
+local function upgrade(stored, live)
+  local out = { v = BASE_VERSION }
+  for _, key in ipairs(KEYS) do
+    out[key] = stored[key]
+  end
+  out.glide = stored.glide
+  if out.glide == nil then
+    out.glide = live.glide
+  end
+  local shape = stored.shape
+  if shape == nil then
+    shape = live.shape
+  end
+  -- `A and nil or B` is B in Lua whatever A is, so this branch stays explicit.
+  if OUR_SHAPES[shape] then
+    shape = nil
+  end
+  out.shape = shape
+  return out
+end
+
+--- The user's baseline: the store's, once it has one, else the settings as they stand. A stored
+--- baseline that differs from the live settings is a boost left behind by a crash, so it wins
+--- and is put back.
+local function baseline(cx, level)
   local live = current_cursor(cx)
   if live == nil then
     return nil
   end
   local stored = tern.kv.get(BASE_KEY)
-  if type(stored) == "table" and stored.trail and stored.pulse then
-    if stored.trail ~= live.trail or stored.pulse ~= live.pulse then
-      tern.log.warn("restoring cursor effects left boosted: " .. stored.trail .. "/" .. stored.pulse)
-      pcall(cx.settings.set, cx.settings, "cursor.trail", stored.trail)
-      pcall(cx.settings.set, cx.settings, "cursor.pulse", stored.pulse)
+  if type(stored) ~= "table" then
+    -- Nothing stored yet. Only capture while no combo is running, or a reload during one would
+    -- record the boosted values as the user's own.
+    if level == 0 then
+      local fresh = { v = BASE_VERSION }
+      for _, key in ipairs(KEYS) do
+        fresh[key] = live[key]
+      end
+      tern.kv.set(BASE_KEY, fresh)
     end
-    return { trail = stored.trail, pulse = stored.pulse }
+    return live
   end
-  tern.kv.set(BASE_KEY, live)
-  return live
+  local want = stored.v == BASE_VERSION and stored or upgrade(stored, live)
+  if not same(want, live) then
+    tern.log.warn("restoring cursor effects left boosted: " .. tern.json.encode(want))
+  end
+  tern.kv.set(BASE_KEY, want)
+  return want
 end
 
 local base = nil
-local applied = nil -- the pair currently in effect, so a change costs one write per step
+local applied = nil -- the set in effect, so a change costs one write per step
 
 local function apply(cx, wanted)
-  if wanted == nil then
+  if wanted == nil or same(applied, wanted) then
     return
   end
-  if applied and applied.trail == wanted.trail and applied.pulse == wanted.pulse then
-    return
+  applied = {}
+  for _, key in ipairs(KEYS) do
+    applied[key] = wanted[key]
+    pcall(cx.settings.set, cx.settings, "cursor." .. key, wanted[key])
   end
-  applied = { trail = wanted.trail, pulse = wanted.pulse }
-  pcall(cx.settings.set, cx.settings, "cursor.trail", wanted.trail)
-  pcall(cx.settings.set, cx.settings, "cursor.pulse", wanted.pulse)
 end
 
 local function level_pair(level)
-  for i = math.min(level, 6), 3, -1 do
-    if LADDER[i] then
-      return LADDER[i]
-    end
-  end
-  return nil
+  return LADDER[math.min(math.max(level, 1), 6)]
 end
 
 --- Reads the focused directory's state and sets the effects for its level.
 --- The baseline is read once, from the first context that has settings; the timer's `cx` is
 --- the one that arrives first when the window is already up (a reload).
-local function ensure_base(cx)
+local function ensure_base(cx, level)
   if base == nil and cx and cx.settings then
-    base = baseline(cx)
+    base = baseline(cx, level)
     applied = nil
     apply(cx, base)
   end
 end
 
 local function look(cx)
-  ensure_base(cx)
   local cwd = focused_cwd(cx)
   local s = state_for(cwd)
   local level = s and tonumber(s.level) or 0
+  ensure_base(cx, level)
   if level > 0 then
     local pair = level_pair(level)
     if pair == nil then
       apply(cx, base)
       return
     end
-    apply(cx, { trail = pair.trail, pulse = pair.pulse })
+    apply(cx, {
+      trail = pair.trail,
+      pulse = pair.pulse,
+      glide = pair.glide,
+      shape = pair.shape,
+    })
     return
   end
   apply(cx, base)

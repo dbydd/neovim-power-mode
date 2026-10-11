@@ -46,14 +46,20 @@ Tern's own: its cursor **trail** (off, warp, comet, blaze, sparks, echo) and **p
 ripple, sonic_boom, box_ripple, box_boom), under Settings › Appearance › Cursor. This fork
 lets the combo escalate which pair is playing, and puts your own back when it dies:
 
-| Combo level | `cursor.trail` | `cursor.pulse` |
-|---|---|---|
-| 1 | `comet` | `ripple` |
-| 2 | `comet` | `box_ripple` |
-| 3 | `blaze` | `box_ripple` |
-| 4 | `blaze` | `sonic_boom` |
-| 5 | `sparks` | `sonic_boom` |
-| 6 | `sparks` | `box_boom` |
+| Combo level | `cursor.trail` | `cursor.pulse` | `cursor.glide` | `cursor.shape` |
+|---|---|---|---|---|
+| 1 | `comet` | `ripple` | 60 ms | yours |
+| 2 | `comet` | `box_ripple` | 90 ms | yours |
+| 3 | `blaze` | `box_ripple` | 120 ms | `soft` |
+| 4 | `blaze` | `sonic_boom` | 150 ms | `soft` |
+| 5 | `sparks` | `sonic_boom` | 190 ms | `bar` |
+| 6 | `sparks` | `box_boom` | 240 ms | `bar` |
+
+The glide and the shape matter as much as the trail: the cursor flies further to each place, and
+each shape change fires the pulse again. All four keys go back to your own values together when
+the combo dies — the baseline lives in the plugin's key-value store, so even a crash mid-combo
+leaves the terminal exactly as you had it. Rendering knobs (multisampling, frames queued) are
+deliberately left alone: they change nothing you can see.
 
 Two halves:
 
