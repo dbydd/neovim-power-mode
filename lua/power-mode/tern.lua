@@ -55,6 +55,9 @@ function M.publish(level, combo, force)
     pcall(vim.fn.mkdir, state.dir, "p")
   end
   local cwd = vim.fn.getcwd()
+  if cwd == nil or cwd == "" then
+    return -- no directory, nothing for the Tern half to match
+  end
   local payload = vim.json.encode({
     cwd = cwd,
     home = vim.env.HOME, -- Tern shows the home directory as `~`; it needs the prefix to match
