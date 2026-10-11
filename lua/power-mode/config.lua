@@ -80,6 +80,18 @@ local defaults = {
     max_rows = 5,          -- maximum fire height in rows
   },
 
+  -- dbydd fork: inside the Tern terminal, tell Tern the combo so its own cursor effects
+  -- (`cursor.trail` / `cursor.pulse`) scale with it. The signal is one small JSON per working
+  -- directory; a Tern plugin reads it. Outside Tern this is inert.
+  tern = {
+    enabled = true,
+    -- The 1×1 float pool is skipped inside Tern, where Tern's own cursor effects do the
+    -- visible work; set true to keep the particles as floats anyway.
+    floats = false,
+    dir = "/tmp/power-surge",
+    interval_ms = 120,
+  },
+
   engine = {
     fps = 25,
     stop_delay = 2000,

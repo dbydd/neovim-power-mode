@@ -1,0 +1,7 @@
+schema = 1
+id = "power-mode-tern"
+name = "Power Mode (Tern effects)"
+version = "0.1.0"
+description = "Plays Tern's own cursor trail and pulse, scaled by the combo neovim-power-mode reports."
+icon = "zap"
+window = "window.luau"

@@ -9,6 +9,7 @@ local engine = require("power-mode.engine")
 local shake = require("power-mode.shake")
 local fire = require("power-mode.presets.fire")
 local fire_wall = require("power-mode.fire_wall")
+local tern = require("power-mode.tern")
 local utils = require("power-mode.utils")
 
 local M = {}
@@ -31,6 +32,7 @@ function M.setup(opts)
   config.resolve(opts)
   highlights.setup()
   particles.init()
+  tern.setup(config.get().tern)
 
   -- Wire engine modules (avoids circular requires)
   engine.set_modules(particles, fire, renderer, combo, fire_wall)
@@ -73,6 +75,12 @@ function M.enable()
   end)
 
   augroup = vim.api.nvim_create_augroup("PowerMode", { clear = true })
+  vim.api.nvim_create_autocmd("VimLeavePre", {
+    group = augroup,
+    callback = function()
+      tern.clear()
+    end,
+  })
 
   vim.api.nvim_create_autocmd("InsertCharPre", {
     group = augroup,
@@ -82,6 +90,7 @@ function M.enable()
         local row, col = get_cursor_pos()
         particles.spawn(row, col)
         combo.increment()
+        tern.publish(combo.get_level(), combo.get_streak())
         shake.trigger(combo.get_level())
         fire_wall.spawn(combo.get_level(), combo.get_streak())
         engine.wake()
@@ -118,6 +127,7 @@ function M.enable()
     callback = function()
       if not enabled then return end
       combo.reset()
+      tern.clear()
 
       if stop_timer then
         pcall(function() stop_timer:stop() stop_timer:close() end)
