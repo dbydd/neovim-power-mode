@@ -12,12 +12,15 @@
 -- half polls the file for the focused pane's directory and reacts to the level.
 local STATE_DIR = "/tmp/power-surge"
 
---- What each combo level plays. Levels below the first row leave the user's own effects alone;
---- the last row is the ceiling, so a longer combo keeps the loudest pair rather than racing off
+--- What each combo level plays, climbing one notch per level: the terminal's cursor starts
+--- leaving a comet on the first keystroke of a combo and ends on sparks with a box boom. The
+--- last row is the ceiling, so a longer combo holds the loudest pair rather than running off
 --- the end of either enum.
 local LADDER = {
-  [3] = { trail = "comet", pulse = "ripple" },
-  [4] = { trail = "blaze", pulse = "box_ripple" },
+  [1] = { trail = "comet", pulse = "ripple" },
+  [2] = { trail = "comet", pulse = "box_ripple" },
+  [3] = { trail = "blaze", pulse = "box_ripple" },
+  [4] = { trail = "blaze", pulse = "sonic_boom" },
   [5] = { trail = "sparks", pulse = "sonic_boom" },
   [6] = { trail = "sparks", pulse = "box_boom" },
 }

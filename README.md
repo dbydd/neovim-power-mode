@@ -4,8 +4,9 @@
 
 > **This is `dbydd/neovim-power-mode`, a fork of [axsaucedo/neovim-power-mode](https://github.com/axsaucedo/neovim-power-mode)**
 > (branch `tern-effects`) with one addition: inside the [Tern](https://tern.dev) terminal the
-> combo drives Tern's **own** cursor trail and pulse instead of the particle floats, so the
-> effect plays without 60 floating windows. See [Tern](#tern) below. Everything else is upstream.
+> combo also drives Tern's **own** cursor trail and pulse, which the particle floats cannot do
+> once neotern draws the editor as a surface rather than a grid. See [Tern](#tern) below.
+> Everything else is upstream.
 
 [![Neovim](https://img.shields.io/badge/Neovim-≥0.9-green?style=flat&logo=neovim)](https://neovim.io)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -47,9 +48,10 @@ lets the combo escalate which pair is playing, and puts your own back when it di
 
 | Combo level | `cursor.trail` | `cursor.pulse` |
 |---|---|---|
-| 1–2 | yours | yours |
-| 3 | `comet` | `ripple` |
-| 4 | `blaze` | `box_ripple` |
+| 1 | `comet` | `ripple` |
+| 2 | `comet` | `box_ripple` |
+| 3 | `blaze` | `box_ripple` |
+| 4 | `blaze` | `sonic_boom` |
 | 5 | `sparks` | `sonic_boom` |
 | 6 | `sparks` | `box_boom` |
 
@@ -69,9 +71,9 @@ Two halves:
   as you had it). It also offers **Power Mode: Toggle** (`ctrl+alt+shift+p`) for the focused
   Neovim pane.
 
-The 1×1 float pool is skipped inside Tern, since the visible work is Tern's; set
-`tern = { floats = true }` to keep the particles as floats anyway. Outside Tern every part of
-this is inert and the plugin behaves exactly like upstream.
+The particles, the fire wall and the combo box are untouched: Tern only adds the terminal's own
+cursor effects on top. Outside Tern every part of this is inert and the plugin behaves exactly
+like upstream.
 
 ## Requirements
 

@@ -28,19 +28,8 @@ local function get_char_width(ch)
   return w
 end
 
---- Inside Tern the particle pool is left empty: the screen effect there is Tern's own cursor
---- trail and pulse, driven through the state file (`power-mode.tern`). A pool of 1×1 floats
---- would only be redrawn as cards. `tern.floats = true` restores upstream behavior.
-local function floats_enabled()
-  local cfg = config.get()
-  return not (cfg.tern.enabled and cfg.tern.floats ~= true and vim.env.TERM_PROGRAM == "tern")
-end
-
 function M.init()
   M.cleanup()
-  if not floats_enabled() then
-    return
-  end
   local cfg = config.get()
   local pool_size = cfg.particles.pool_size
 
@@ -93,9 +82,6 @@ local function cleanup_deferred(entries, first)
 end
 
 function M.render(particles)
-  if not floats_enabled() then
-    return
-  end
   local cfg = config.get()
   local avoid = cfg.particles.avoid_cursor
 

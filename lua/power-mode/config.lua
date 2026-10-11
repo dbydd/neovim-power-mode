@@ -85,9 +85,6 @@ local defaults = {
   -- directory; a Tern plugin reads it. Outside Tern this is inert.
   tern = {
     enabled = true,
-    -- The 1×1 float pool is skipped inside Tern, where Tern's own cursor effects do the
-    -- visible work; set true to keep the particles as floats anyway.
-    floats = false,
     dir = "/tmp/power-surge",
     interval_ms = 120,
   },
